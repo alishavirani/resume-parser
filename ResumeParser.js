@@ -1,27 +1,27 @@
 const moment = require("moment");
 
 class ResumeParser {
-	constructor() {
-		this.fName = "";
-		this.lName = "";
-	}
+  constructor() {
+    this.fName = "";
+    this.lName = "";
+  }
   getName(line) {
     const trimmedLine = line.replace(" +", " ");
     const lineContent = trimmedLine.replace("^\\s+", "");
     const lineArr = lineContent.split(" ");
     if (lineArr.length && lineArr.length === 1) {
-			if (this.fName) {
-				this.lName = lineArr[0];
-			} else {
-				this.fName = lineArr[0];
-			}
+      if (this.fName) {
+        this.lName = lineArr[0];
+      } else {
+        this.fName = lineArr[0];
+      }
     } else if (lineArr.length && lineArr.length <= 3) {
       this.fName = lineArr[0];
       this.lName = lineArr[1];
       if (lineArr.length == 3) {
         this.lName = (lineArr[1] + " " + lineArr[2]).trim();
       }
-		}
+    }
   }
   parse(resumeData) {
     let fileContent = resumeData;
@@ -54,13 +54,13 @@ class ResumeParser {
     });
     for (let i = 0; i < lines.length; i++) {
       if (lines[i]) {
-				this.getName(lines[i]);
-				if (this.fName && this.lName) {
-					break;
-				}
+        this.getName(lines[i]);
+        if (this.fName && this.lName) {
+          break;
+        }
       }
     }
-  
+
     //-------------------------------------------------------------------------------------
     //Get all sentences which contain the word years/year
     let str = "";
@@ -75,7 +75,6 @@ class ResumeParser {
         // break; // to terminate when one digit related to years/year found, condition for months/month newly added else it will calculate all the year/months as years of experience
       }
     }
-    console.log("STRRR:::", str)
 
     //get years of experience from a string which may include experience in years and months
     //Eg: 1 year 2 months
@@ -94,8 +93,7 @@ class ResumeParser {
       }
       experienceStr.push(m[0]);
     }
-    console.log("experienceStr:::", experienceStr)
-
+    console.log(experienceStr)
     let monthsOfExp = 0;
     for (let exp of experienceStr) {
       if (exp.toLowerCase().includes("year")) {
@@ -127,63 +125,72 @@ class ResumeParser {
 
     if (!totExp) {
       //Format for dd/mm/yyyy or dd-mm-yyyy or dd/mm/yyyy or dd-mm-yyyy
-      const ddmmyyyyRegex = /\d{1,2}[-\/]\d{1,2}[-\/]\d{4}/g;
+      const ddmmyyyyRegex = /\d{1,2}([.\-/])\d{1,2}([.\-/])\d{2,4}/g;
       //Format for mm/yyyy or mm-yyyy format or mm-yyyy or mm/yyyy
-      const mmyyyyRegex = /\s(\d{2}[-\/](\d{4}))/g;
-      //Format for eg: April,2019,June2018,Apr 2019,27 December 2017,26th June 2018
-      const monthInWordsRegex = /(\d{1,2})?(st|nd|rd|th)?(\s)?(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\s?,?)\d{4}/g;
+      const mmyyyyRegex = /\d{1,2}[-/]\d{2,4}/g;
+
+      //Format for eg: April,2019,June2018,Apr 2019,27 December 2017
+      // const monthInWordsRegex = /(\d{1,2})?(\s)?(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(,?)(\s?)('?)\d{2,4}/gi;
+
+      //Format for eg: 26th June 2018,April,2019,June2018,Apr 2019,27 December 2017
+      const dayMonthInWordsRegex = /(\d{1,2})?(st|nd|rd|th)?(\s)?(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\s?,?)\d{4}/gi;
+
       let experience = [];
 
-      while ((m = ddmmyyyyRegex.exec(fileContent)) !== null) {
-        // This is necessary to avoid infinite loops with zero-width matches
-        if (m.index === ddmmyyyyRegex.lastIndex) {
-          ddmmyyyyRegex.lastIndex++;
+      do {
+        m = ddmmyyyyRegex.exec(fileContent);
+        if (m) {
+          experience.push(moment(m[0], "DD-MM-YYYY"));
         }
-        experience.push(moment(m[0], "DD-MM-YYYY"));
-      }
-      console.log("experience??", experience)
-      while ((m = mmyyyyRegex.exec(fileContent)) !== null) {
-        m[0].trim();
-        // This is necessary to avoid infinite loops with zero-width matches
-        if (m.index === mmyyyyRegex.lastIndex) {
-          ddmmyyyyRegex.lastIndex++;
-        }
-        experience.push(moment(m[0], "MM-YYYY"));
-      }
-      console.log("experience??", experience)
+      } while (m);
+      console.log("experience ddmmyyyy??", experience);
 
-      //handle this using moment
-      while ((m = monthInWordsRegex.exec(fileContent)) !== null) {
-        let date;
-        let year = 0;
-        let month = "";
-        let day = 0;
-        m[0].trim();
-        // This is necessary to avoid infinite loops with zero-width matches
-        if (m.index === monthInWordsRegex.lastIndex) {
-          ddmmyyyyRegex.lastIndex++;
-        }
-        // console.log(m[0], m[0].split(" ").length);
+      if (experience.length <= 0) {
+        do {
+          m = mmyyyyRegex.exec(fileContent);
+          if (m) {
+            m[0].trim();
+            experience.push(moment(m[0], "MM-YYYY"));
+          }
+        } while (m);
+        console.log("experience mmyyyy??", experience);
+      }
+      
 
-        const len = m[0].split(" ").length;
-        if (len === 3) {
-          date = m[0].split(" ");
-          day = parseInt(date[0]) ? parseInt(date[0]) : 1;
-          month = date[1];
-          month = month.match(/\w+/) ? month.match(/\w+/)[0] : 0;
-          year = parseInt(date[2]);
-        }
-        if (len === 2) {
-          // console.log("date?", m[0]);
-          date = m[0].split(" ");
-          month = date[0];
-          day = month.match(/\d*/) ? +month.match(/\d*/)[0] : 0;
-          month = month.match(/\[a-z]+/) ? month.match(/\[a-z]+/)[0] : "";
-          year = parseInt(date[1]);
-          // console.log(day, month, year);
-        }
+      // do {
+      //   m = monthInWordsRegex.exec(fileContent);
+      //   if (m) {
+      //     console.log(m[0])
+      //     let dateStr = new Date(m[0]);
+      //     experience.push(moment(dateStr, "MM-YYYY"));
+      //   }
+      // } while (m);
+      // console.log("experience monthInWords??", experience);
+      if (experience.length <= 0) {
+        do {
+          m = dayMonthInWordsRegex.exec(fileContent);
+          if (m) {
+            let resumeDate = m[0];
+            if (resumeDate.includes("th")) {
+              resumeDate = resumeDate.split("th")[0] + " " +resumeDate.split("th")[1].substring(1);
+            }
+            if (resumeDate.includes("st")) {
+              resumeDate = resumeDate.split("st")[0] + " " +resumeDate.split("st")[1].substring(1);
+            }
+            if (resumeDate.includes("nd")) {
+              resumeDate = resumeDate.split("nd")[0] + " " +resumeDate.split("nd")[1].substring(1);
+            }
+            if (resumeDate.includes("rd")) {
+              resumeDate = resumeDate.split("rd")[0] + " " +resumeDate.split("rd")[1].substring(1);
+            }
+            let dateStr = new Date(resumeDate);
+            experience.push(moment(dateStr, "MM-YYYY"));
+          }
+        } while (m);
+        console.log("experience dayMonthInWordsRegex??", experience);
       }
 
+      //calculates total years of experience
       if (experience) {
         let experienceInDays = 0;
         if (experience.length % 2 !== 0) {
@@ -192,6 +199,7 @@ class ResumeParser {
         experience.sort(function(a, b) {
           return moment(b).format("X") - moment(a).format("X");
         });
+        console.log("sorted experience???", experience);
         for (let i = 0; i < experience.length; i = i + 2) {
           experienceInDays += experience[i].diff(experience[i + 1], "days");
         }
